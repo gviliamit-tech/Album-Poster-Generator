@@ -19,7 +19,8 @@ from sklearn.cluster import KMeans
 # ----------------------------------------------------------------------------
 # CONFIG 
 # ----------------------------------------------------------------------------
-FONT_MAIN = "Bahnschrift SemiBold Condensed"
+FONT_MAIN_DEFAULT = "Bahnschrift SemiBold Condensed"
+FONT_HEBREW_DEFAULT = "Arial"  # פונט ברירת מחדל התומך בעברית
 FONT_LIGHT = "Bahnschrift Light"
 BOLD = False
 COND_EM = 0.50
@@ -30,6 +31,10 @@ COVER_Y = 0.35
 RULE_Y = 10.62
 LIST_BOTTOM = 10.40
 GRAY_TEXT = "808080"
+
+# בדיקה האם יש טקסט בעברית
+def contains_hebrew(text):
+    return bool(re.search(r'[\u0590-\u05FF]', str(text)))
 
 # ============================== COLOR HELPERS ===============================
 def hex_to_rgb(h):
@@ -204,11 +209,6 @@ def fetch_album_data(search_query):
     genre = best_match.get('primaryGenreName', '').replace('/', ' | ')
 
     print(f"Found Match: {artist} - {title}")
-    
-    if len(response['results']) > 1:
-        print("  Other top results you can search for specifically:")
-        for r in response['results'][1:4]:
-            print(f"  - {r.get('artistName')} - {r.get('collectionName')}")
 
     track_url = "https://itunes.apple.com/lookup"
     track_response = requests.get(track_url, params={"id": album_id, "entity": "song"}).json()
@@ -235,8 +235,20 @@ def fetch_album_data(search_query):
 
 # ============================== BUILD THE SLIDE =============================
 def build_poster(cover_path, artist, title, date, genres, tracks, out_path):
-    artist_u, title_u = artist.upper(), title.upper()
-    tracks_u = [re.sub(r"^\s*\d+[.)]\s*", "", t).strip().upper() for t in tracks if t.strip()]
+    all_text_check = f"{artist} {title} {' '.join(tracks)}"
+    is_rtl = contains_hebrew(all_text_check)
+    
+    font_main = FONT_HEBREW_DEFAULT if is_rtl else FONT_MAIN_DEFAULT
+
+    artist_u = artist.upper() if not contains_hebrew(artist) else artist
+    title_u = title.upper() if not contains_hebrew(title) else title
+    
+    tracks_u = []
+    for i, t in enumerate(tracks):
+        clean_t = re.sub(r"^\s*\d+[.)]\s*", "", t).strip()
+        clean_t = clean_t.upper() if not contains_hebrew(clean_t) else clean_t
+        # אם הכל בעברית, נכתוב את המספר מימין לשם השיר
+        tracks_u.append(f"{i + 1}. {clean_t}" if not is_rtl else f"{clean_t} .{i + 1}")
 
     img = Image.open(cover_path)
     palette = extract_palette(img)
@@ -254,8 +266,9 @@ def build_poster(cover_path, artist, title, date, genres, tracks, out_path):
     cw = PAGE_W - 2 * MARGIN
     right = MARGIN + cw
     s = cw / 1349
-    font_kw = dict(font=FONT_MAIN, bold=BOLD)
+    font_kw = dict(font=font_main, bold=BOLD)
 
+    # --- Cover ---
     pic = slide.shapes.add_picture(str(pic_path), Inches(MARGIN), Inches(COVER_Y), Inches(cw), Inches(cw))
     pic.name = "Cover"
     w, h = img.size
@@ -265,46 +278,59 @@ def build_poster(cover_path, artist, title, date, genres, tracks, out_path):
         pic.crop_top = pic.crop_bottom = (h - w) / 2 / h
     cover_bottom = COVER_Y + cw
 
+    # --- Swatches (RTL / LTR) ---
     sw_y = cover_bottom + 0.21
     sw_total, gap, sw_h = 585 * s, 25 * s, 91 * s
     sw_w = (sw_total - 4 * gap) / 5
+    sw_start_x = MARGIN if is_rtl else right - sw_total
+    
     for i, col in enumerate(palette):
-        add_rect(slide, f"Swatch {i + 1}", right - sw_total + i * (sw_w + gap), sw_y, sw_w, sw_h, col)
+        add_rect(slide, f"Swatch {i + 1}", sw_start_x + i * (sw_w + gap), sw_y, sw_w, sw_h, col)
 
+    # --- Genres (RTL / LTR) ---
     if genres:
-        add_text(slide, "Genres", right - 3.2, sw_y + sw_h + 0.10, 3.2, 0.3, [genres],
-                 FONT_LIGHT, 11.5, GRAY_TEXT, align=PP_ALIGN.RIGHT)
+        g_x = MARGIN if is_rtl else right - 3.2
+        g_align = PP_ALIGN.LEFT if is_rtl else PP_ALIGN.RIGHT
+        add_text(slide, "Genres", g_x, sw_y + sw_h + 0.10, 3.2, 0.3, [genres],
+                 FONT_LIGHT if not is_rtl else FONT_HEBREW_DEFAULT, 11.5, GRAY_TEXT, align=g_align)
 
-    # --- tracklist (clean 14pt font, 1.0 line spacing) ---
+    # --- Tracklist (RTL / LTR) ---
     list_top = cover_bottom + 0.25
     list_w = 0.44 * cw
-    formatted_tracks = [f"{i + 1}. {t}" for i, t in enumerate(tracks_u)]
+    list_align = PP_ALIGN.RIGHT if is_rtl else PP_ALIGN.LEFT
+    list_x = right - list_w if is_rtl else MARGIN
     
     FONT_SIZE_PT = 14
-    LINE_SPACING_PT = 16.8  # Clean 1.2x pitch (~1.0 line spacing in PPTX)
+    LINE_SPACING_PT = 16.8
     
-    if len(formatted_tracks) > 13:
-        # Two columns if more than 13 tracks to fit 14pt cleanly
-        col1 = formatted_tracks[:13]
-        col2 = formatted_tracks[13:]
+    if len(tracks_u) > 13:
+        col1 = tracks_u[:13]
+        col2 = tracks_u[13:]
         col_w = list_w * 0.60
         
-        add_text(slide, "Tracklist 1", MARGIN, list_top, col_w, LIST_BOTTOM - list_top,
-                 col1, color="111111", size=FONT_SIZE_PT, line_pt=LINE_SPACING_PT, **font_kw)
-        add_text(slide, "Tracklist 2", MARGIN + col_w, list_top, col_w, LIST_BOTTOM - list_top,
-                 col2, color="111111", size=FONT_SIZE_PT, line_pt=LINE_SPACING_PT, **font_kw)
+        # בעברית (RTL): הטור הראשון (1-13) יהיה בצד ימין, והטור השני (14+) משמאלו
+        x1 = right - col_w if is_rtl else MARGIN
+        x2 = right - col_w * 2 if is_rtl else MARGIN + col_w
+        
+        add_text(slide, "Tracklist 1", x1, list_top, col_w, LIST_BOTTOM - list_top,
+                 col1, color="111111", size=FONT_SIZE_PT, line_pt=LINE_SPACING_PT, align=list_align, **font_kw)
+        add_text(slide, "Tracklist 2", x2, list_top, col_w, LIST_BOTTOM - list_top,
+                 col2, color="111111", size=FONT_SIZE_PT, line_pt=LINE_SPACING_PT, align=list_align, **font_kw)
     else:
-        # Single column
-        add_text(slide, "Tracklist", MARGIN, list_top, list_w, LIST_BOTTOM - list_top,
-                 formatted_tracks, color="111111", size=FONT_SIZE_PT, line_pt=LINE_SPACING_PT, **font_kw)
+        add_text(slide, "Tracklist", list_x, list_top, list_w, LIST_BOTTOM - list_top,
+                 tracks_u, color="111111", size=FONT_SIZE_PT, line_pt=LINE_SPACING_PT, align=list_align, **font_kw)
 
     add_rect(slide, "Rule", MARGIN - 0.12, RULE_Y, cw + 0.24, 0.05, "000000")
-    add_text(slide, "Date", MARGIN, RULE_Y + 0.12, 4, 0.3, [fmt_date(date)], color="111111", size=14, **font_kw)
+    
+    # --- Date ---
+    date_align = PP_ALIGN.RIGHT if is_rtl else PP_ALIGN.LEFT
+    date_x = right - 4 if is_rtl else MARGIN
+    add_text(slide, "Date", date_x, RULE_Y + 0.12, 4, 0.3, [fmt_date(date)], color="111111", size=14, align=date_align, **font_kw)
 
-    # --- artist + title block (bottom right) ---
-    block_right = right + 0.10
+    # --- Artist + Title Block (RTL / LTR) ---
     max_block_w = 0.54 * cw
     TITLE_EM = COND_EM * 0.96
+    t_align = PP_ALIGN.LEFT if is_rtl else PP_ALIGN.RIGHT
     
     t_lines = [title_u]
     pt = min(54, max_block_w * 72 / (len(title_u) * TITLE_EM))
@@ -318,15 +344,18 @@ def build_poster(cover_path, artist, title, date, genres, tracks, out_path):
     descent = lambda pt: 0.20 * pt / 72
     t_bottom = RULE_Y - 0.06 + descent(pt)
     
-    # Title (Bottom Right)
-    add_text(slide, "Album title", block_right - max_block_w, t_bottom - t_h - 0.1, max_block_w, t_h + 0.1,
-             t_lines, color=title_color, size=pt, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.BOTTOM,
+    # בעברית נמקם את הבלוק בשמאל
+    t_x = MARGIN if is_rtl else right + 0.10 - max_block_w
+    
+    # Title
+    add_text(slide, "Album title", t_x, t_bottom - t_h - 0.1, max_block_w, t_h + 0.1,
+             t_lines, color=title_color, size=pt, align=t_align, anchor=MSO_ANCHOR.BOTTOM,
              spacing_pt=1, line_pt=pt, **font_kw)
              
-    # Artist (Stacked directly above Title)
+    # Artist
     a_pt = min(22, max_block_w * 72 / (len(artist_u) * COND_EM))
-    add_text(slide, "Artist", block_right - max_block_w, t_bottom - t_h - 0.1 - a_pt * 1.2 / 72, max_block_w,
-             a_pt * 1.2 / 72, [artist_u], color=artist_color, size=a_pt, align=PP_ALIGN.RIGHT,
+    add_text(slide, "Artist", t_x, t_bottom - t_h - 0.1 - a_pt * 1.2 / 72, max_block_w,
+             a_pt * 1.2 / 72, [artist_u], color=artist_color, size=a_pt, align=t_align,
              anchor=MSO_ANCHOR.BOTTOM, **font_kw)
 
     prs.save(out_path)
@@ -339,17 +368,17 @@ def main():
     a, _ = ap.parse_known_args()
 
     if not a.search:
-        sys.exit("You must provide an album to search! Example: python make_poster.py --search \"Frank Ocean Blonde\"")
+        sys.exit("You must provide an album to search! Example: python make_poster.py --search \"טונה - טונהפארק\"")
 
     meta = fetch_album_data(a.search)
     
-    filename = re.sub(r'[\\/:*?"<>|]', "", f"{meta['artist']} - {meta['title']}") + ".pptx"
+    clean_filename = re.sub(r'[\\/:*?"<>|]', "", f"{meta['artist']} - {meta['title']}") + ".pptx"
     out_dir = Path("posters")
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / filename
+    out = out_dir / clean_filename
 
     print("Generating poster layout...")
-    palette = build_poster(meta["cover_path"], meta["artist"], meta["title"], meta["date"], meta["genres"], meta["tracks"], out)
+    palette = build_poster(meta["cover_path"], meta["artist"], meta["title"], meta.get("date", ""), meta.get("genres", ""), meta.get("tracks", []), out)
     print(f"Success! Saved poster to: {out}")
     print("Color Palette used:", " ".join("#" + c for c in palette))
 
