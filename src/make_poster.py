@@ -234,6 +234,7 @@ def fetch_album_data(search_query):
     }
 
 # ============================== BUILD THE SLIDE =============================
+# ============================== BUILD THE SLIDE =============================
 def build_poster(cover_path, artist, title, date, genres, tracks, out_path):
     all_text_check = f"{artist} {title} {' '.join(tracks)}"
     is_rtl = contains_hebrew(all_text_check)
@@ -247,7 +248,7 @@ def build_poster(cover_path, artist, title, date, genres, tracks, out_path):
     for i, t in enumerate(tracks):
         clean_t = re.sub(r"^\s*\d+[.)]\s*", "", t).strip()
         clean_t = clean_t.upper() if not contains_hebrew(clean_t) else clean_t
-        # אם הכל בעברית, נכתוב את המספר מימין לשם השיר
+        # Format track number to the right of text if RTL
         tracks_u.append(f"{i + 1}. {clean_t}" if not is_rtl else f"{clean_t} .{i + 1}")
 
     img = Image.open(cover_path)
@@ -278,7 +279,7 @@ def build_poster(cover_path, artist, title, date, genres, tracks, out_path):
         pic.crop_top = pic.crop_bottom = (h - w) / 2 / h
     cover_bottom = COVER_Y + cw
 
-    # --- Swatches (RTL / LTR) ---
+    # --- Swatches (RTL pushes them to the LEFT) ---
     sw_y = cover_bottom + 0.21
     sw_total, gap, sw_h = 585 * s, 25 * s, 91 * s
     sw_w = (sw_total - 4 * gap) / 5
@@ -287,14 +288,14 @@ def build_poster(cover_path, artist, title, date, genres, tracks, out_path):
     for i, col in enumerate(palette):
         add_rect(slide, f"Swatch {i + 1}", sw_start_x + i * (sw_w + gap), sw_y, sw_w, sw_h, col)
 
-    # --- Genres (RTL / LTR) ---
+    # --- Genres (RTL pushes them to the LEFT) ---
     if genres:
         g_x = MARGIN if is_rtl else right - 3.2
         g_align = PP_ALIGN.LEFT if is_rtl else PP_ALIGN.RIGHT
         add_text(slide, "Genres", g_x, sw_y + sw_h + 0.10, 3.2, 0.3, [genres],
                  FONT_LIGHT if not is_rtl else FONT_HEBREW_DEFAULT, 11.5, GRAY_TEXT, align=g_align)
 
-    # --- Tracklist (RTL / LTR) ---
+    # --- Tracklist (RTL pushes it to the RIGHT) ---
     list_top = cover_bottom + 0.25
     list_w = 0.44 * cw
     list_align = PP_ALIGN.RIGHT if is_rtl else PP_ALIGN.LEFT
@@ -308,7 +309,7 @@ def build_poster(cover_path, artist, title, date, genres, tracks, out_path):
         col2 = tracks_u[13:]
         col_w = list_w * 0.60
         
-        # בעברית (RTL): הטור הראשון (1-13) יהיה בצד ימין, והטור השני (14+) משמאלו
+        # In RTL, Column 1 is on the far right, Column 2 is to its left
         x1 = right - col_w if is_rtl else MARGIN
         x2 = right - col_w * 2 if is_rtl else MARGIN + col_w
         
@@ -322,12 +323,12 @@ def build_poster(cover_path, artist, title, date, genres, tracks, out_path):
 
     add_rect(slide, "Rule", MARGIN - 0.12, RULE_Y, cw + 0.24, 0.05, "000000")
     
-    # --- Date ---
+    # --- Date (RTL pushes it to the RIGHT) ---
     date_align = PP_ALIGN.RIGHT if is_rtl else PP_ALIGN.LEFT
     date_x = right - 4 if is_rtl else MARGIN
     add_text(slide, "Date", date_x, RULE_Y + 0.12, 4, 0.3, [fmt_date(date)], color="111111", size=14, align=date_align, **font_kw)
 
-    # --- Artist + Title Block (RTL / LTR) ---
+    # --- Artist + Title Block (RTL pushes it to the LEFT) ---
     max_block_w = 0.54 * cw
     TITLE_EM = COND_EM * 0.96
     t_align = PP_ALIGN.LEFT if is_rtl else PP_ALIGN.RIGHT
@@ -344,7 +345,6 @@ def build_poster(cover_path, artist, title, date, genres, tracks, out_path):
     descent = lambda pt: 0.20 * pt / 72
     t_bottom = RULE_Y - 0.06 + descent(pt)
     
-    # בעברית נמקם את הבלוק בשמאל
     t_x = MARGIN if is_rtl else right + 0.10 - max_block_w
     
     # Title
