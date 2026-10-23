@@ -19,10 +19,10 @@ from sklearn.cluster import KMeans
 # ----------------------------------------------------------------------------
 # CONFIG 
 # ----------------------------------------------------------------------------
-FONT_MAIN_DEFAULT = "Bahnschrift SemiBold Condensed"
-FONT_HEBREW_DEFAULT = "Arial"  # פונט ברירת מחדל התומך בעברית
+FONT_MAIN_DEFAULT = "Aptos Display"
+FONT_HEBREW_DEFAULT = "Calibri"  # פונט ברירת מחדל התומך בעברית
 FONT_LIGHT = "Bahnschrift Light"
-BOLD = False
+BOLD = True
 COND_EM = 0.50
 
 PAGE_W, PAGE_H = 8.2677, 11.6929   # A4 in inches
@@ -30,7 +30,7 @@ MARGIN = 0.80
 COVER_Y = 0.35
 RULE_Y = 10.62
 LIST_BOTTOM = 10.40
-GRAY_TEXT = "808080"
+GRAY_TEXT = "606060"
 
 # בדיקה האם יש טקסט בעברית
 def contains_hebrew(text):
