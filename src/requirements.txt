@@ -1,0 +1,6 @@
+streamlit
+python-pptx
+Pillow
+scikit-learn
+numpy
+requests
