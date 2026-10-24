@@ -1,68 +1,35 @@
-איך להריץ את מחולל הפוסטרים (Album Poster Generator):
+# מחולל הפוסטרים לאלבומים (Album Poster Generator)
 
-התקנת פייתון (הגדרה חד-פעמית):
+ברוכים הבאים למחולל הפוסטרים! כלי פשוט המאפשר לכם ליצור באופן אוטומטי פוסטרים מעוצבים של אלבומי מוזיקה. התוצר הסופי הוא קובץ PowerPoint מוכן לעריכה ולהדפסה. 
 
-הורד את פייתון מהאתר הרשמי: python.org/downloads.
+המדריך הבא ילווה אתכם צעד אחר צעד, מההתקנה ועד ליצירת הפוסטר הראשון שלכם – אין צורך בידע מוקדם בתכנות.
 
-פתח את קובץ ההתקנה. קריטי: סמן בוי את התיבה בתחתית החלון שנקראת "Add python.exe to PATH" לפני שאתה לוחץ על "Install Now".
+---
 
+## 1. התקנת פייתון (הגדרה חד-פעמית)
+כדי שהתוכנה תעבוד, יש להתקין את שפת התכנות פייתון במחשב. אם פייתון כבר מותקן אצלכם, תוכלו לדלג לשלב הבא.
 
-הורדת הפרויקט:
+1. היכנסו לאתר הרשמי והורידו את התוכנה: [python.org/downloads](https://www.python.org/downloads/).
+2. פתחו את קובץ ההתקנה שהורדתם.
+3. **שלב קריטי:** בתחתית החלון שייפתח, **חובה לסמן ב-V** את התיבה בשם **"Add python.exe to PATH"**. 
+4. רק לאחר מכן, לחצו על "Install Now" והמתינו לסיום ההתקנה.
 
-לחץ על הכפתור הירוק Code ובחר ב-Download ZIP.
+## 2. הורדת הפרויקט למחשב
+1. בעמוד זה ב-GitHub, חפשו את הכפתור הירוק שנקרא **Code** (נמצא למעלה) ולחצו עליו.
+2. בתפריט שייפתח, בחרו באפשרות **Download ZIP**.
+3. לאחר שהקובץ ירד, חלצו אותו (Unzip) לכל מקום שנוח לכם במחשב (למשל לשולחן העבודה).
 
-חלץ (Unzip) את הקובץ שהורדת לכל מקום במחשב ( למשל לשולחן העבודה).
+## 3. הרצת האפליקציה
+1. היכנסו לתיקייה שזה עתה חילצתם.
+2. לחצו לחיצה כפולה (Double-click) על הקובץ בשם **Run.bat**.
+3. *הערה חשובה:* בהפעלה הראשונה בלבד, ייפתח חלון שחור למשך כדקה עד שתיים. חלון זה מוריד ומתקין אוטומטית את כל הרכיבים שהמערכת צריכה כדי לעבוד. זהו תהליך תקין לחלוטין, אנא המתינו בסבלנות.
+4. בסיום תהליך ההתקנה, הדפדפן שלכם ייפתח באופן אוטומטי ויציג את אתר המחולל.
 
-הרצת האפליקציה:
+## 4. יצירת הפוסטרים
+1. בשורת החיפוש באתר, הקלידו את שם האמן ושם האלבום (לדוגמה: `Kendrick Lamar - GNX` או `טונה - טונהפארק`) ולחצו על **Search Album**.
+2. לאחר החיפוש, המערכת תציג תצוגה מקדימה של עטיפת האלבום ותדגום ממנה 5 צבעים מרכזיים באופן אוטומטי. 
+3. במידת הצורך, תוכלו ללחוץ על כל אחד מהצבעים ולשנות אותו באופן ידני כדי לדייק את התוצאה.
+4. לחצו על הכפתור **Generate PPTX Poster**.
+5. המתינו מספר שניות, ולאחר מכן לחצו על **Download**.
 
-פתח את התיקייה שחילצת.
-
-לחץ לחיצה כפולה על הקובץ Run.bat.
-
-הערה: בפעם הראשונה ייפתח חלון שחור למשך כדקה-שתיים ויתקין אוטומטית את כל הרכיבים הדרושים. זה נורמלי לחלוטין!
-
-הדפדפן שלך ייפתח אוטומטית את האתר.
-
-יצירת פוסטרים:
-
-הקלד שם אמנות ואלבום (למשל: Kendrick Lamar - GNX או Drake - Views) ולחץ על Search Album.
-
-צפה בתצוגה המקדימה של העטיפה והצבעים. תוכל לשנות ולכוון כל פלטת צבעים אם תרצה.
-
-לחץ על Generate PPTX Poster ולאחר מכן על Download כדי לקבל מצגת PowerPoint מוכנה לעריכה ולהדפסה!
-
-
-
-How to set up and run the Album Poster Generator:
-
-Install Python (One-time setup):
-
-Download Python from python.org/downloads.
-
-Open the installer. CRITICAL: Check the box at the bottom that says "Add python.exe to PATH" before clicking "Install Now".
-
-Download the Generator:
-
-Go to the GitHub link: [INSERT YOUR GITHUB REPO LINK HERE]
-
-Click the green Code button and select Download ZIP.
-
-Extract the downloaded .zip file anywhere on your computer (e.g., Desktop or Downloads).
-
-Run the App:
-
-Open the extracted folder.
-
-Double-click Run.bat.
-
-Note: The first time you open it, a black window will appear for 1–2 minutes while it automatically downloads the required Python tools.
-
-Your web browser will open automatically with the poster generator interface!
-
-Generate Posters:
-
-Type an artist and album name (e.g., Kendrick Lamar - GNX or Drake - Views) and click Search Album.
-
-Preview the cover and adjust any color swatches using the color pickers if you want.
-
-Click Generate PPTX Poster and hit Download to save your editable PowerPoint poster!
+כעת ירד למחשב שלכם קובץ PowerPoint המכיל את הפוסטר המעוצב – תוכלו לערוך את הטקסטים, לשנות גדלים, או פשוט להדפיס אותו ולתלות בחדר!
