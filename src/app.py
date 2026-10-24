@@ -9,74 +9,107 @@ from PIL import Image
 
 from make_poster import build_poster, extract_palette, pick_text_colors
 
-st.set_page_config(page_title="Album Poster Generator", layout="centered")
+st.set_page_config(page_title="Album Poster Generator", layout="wide")
+
+# --- SIDEBAR: GLOBAL SETTINGS ---
+with st.sidebar:
+    st.header("⚙️ Poster Settings")
+    poster_size = st.selectbox("Canvas Size", ["A4 (8.3 x 11.7)", "US Letter (8.5 x 11)", "A3 (11.7 x 16.5)", "Poster (18 x 24)"])
+    poster_theme = st.selectbox("Design Theme", ["Light - white background", "Dark - black background"])
+    st.caption("Note: Size and Theme engine will be connected in the next update!")
+    st.divider()
+    st.markdown("Built with Python & Streamlit")
+
 st.title("🎵 Album Poster Generator")
 
-# --- STEP 1: SEARCH ---
-query = st.text_input("Search Artist (or Artist & Album)", value="Pink Floyd", help="e.g., 'טונה', 'Pink Floyd', or 'Drake Views'")
+# --- MAIN UI: TABS ---
+tab1, tab2 = st.tabs(["🔍 Search Database", "💿 Custom Mixtape"])
 
-if st.button("Search Albums", type="primary"):
-    with st.spinner("Fetching from iTunes..."):
-        url = "https://itunes.apple.com/search"
-        # Fetch up to 30 results to give a good dropdown list
-        res = requests.get(url, params={"term": query, "entity": "album", "limit": 30}).json()
-        
-        if not res.get("results"):
-            st.error("No albums found. Try checking your spelling!")
-            st.session_state.pop("album_results", None)
-        else:
-            # Filter out singles (trackCount <= 1) and karaoke/tribute albums
-            valid_albums = []
-            for a in res["results"]:
-                if a.get("trackCount", 0) > 1 and "Karaoke" not in a.get("collectionName", ""):
-                    valid_albums.append(a)
-            
-            if not valid_albums:
-                st.error("Only singles found. Try another search.")
-            else:
-                st.session_state["album_results"] = valid_albums
-                st.session_state["selected_index"] = 0
-
-# --- STEP 2: SELECT FROM DROPDOWN ---
-if "album_results" in st.session_state:
-    albums = st.session_state["album_results"]
-    album_options = [f"{a['artistName']} - {a['collectionName']} ({a.get('releaseDate', '')[:4]})" for a in albums]
+# --- TAB 1: SEARCH ITUNES ---
+with tab1:
+    query = st.text_input("Search Artist (or Artist & Album)", value="Pink Floyd", help="e.g., 'טונה', 'Pink Floyd'")
     
-    st.divider()
-    selected_option = st.selectbox("Select the correct album:", album_options)
-    selected_album = albums[album_options.index(selected_option)]
-
-    if st.button("Preview & Load Album"):
-        with st.spinner("Loading high-res cover and tracklist..."):
-            album_id = selected_album["collectionId"]
-            track_res = requests.get("https://itunes.apple.com/lookup", params={"id": album_id, "entity": "song"}).json()
-            tracks = [item["trackName"] for item in track_res.get("results", []) if item.get("wrapperType") == "track"]
-
-            st.session_state["album_data"] = {
-                "artist": selected_album["artistName"],
-                "title": selected_album["collectionName"],
-                "date": selected_album.get("releaseDate", "")[:10],
-                "genres": selected_album.get("primaryGenreName", "").replace("/", " | "),
-                "cover_url": selected_album["artworkUrl100"].replace("100x100bb", "1000x1000bb"),
-                "tracks": tracks
-            }
-
-            img_data = requests.get(st.session_state["album_data"]["cover_url"]).content
-            temp_path = Path(tempfile.gettempdir()) / "temp_cover.jpg"
-            temp_path.write_bytes(img_data)
+    if st.button("Search Albums", type="primary"):
+        with st.spinner("Fetching from iTunes..."):
+            url = "https://itunes.apple.com/search"
+            res = requests.get(url, params={"term": query, "entity": "album", "limit": 30}).json()
             
-            img = Image.open(temp_path)
-            st.session_state["palette"] = extract_palette(img)
-            st.session_state["cover_path"] = str(temp_path)
+            if not res.get("results"):
+                st.error("No albums found. Try checking your spelling!")
+                st.session_state.pop("album_results", None)
+            else:
+                valid_albums = [a for a in res["results"] if a.get("trackCount", 0) > 1 and "Karaoke" not in a.get("collectionName", "")]
+                if not valid_albums:
+                    st.error("Only singles found. Try another search.")
+                else:
+                    st.session_state["album_results"] = valid_albums
 
-# --- STEP 3: PREVIEW & CUSTOMIZE ---
+    if "album_results" in st.session_state:
+        albums = st.session_state["album_results"]
+        album_options = [f"{a['artistName']} - {a['collectionName']} ({a.get('releaseDate', '')[:4]})" for a in albums]
+        
+        selected_option = st.selectbox("Select the correct album:", album_options)
+        selected_album = albums[album_options.index(selected_option)]
+    
+        if st.button("Load Album Data"):
+            with st.spinner("Loading high-res cover and tracklist..."):
+                album_id = selected_album["collectionId"]
+                track_res = requests.get("https://itunes.apple.com/lookup", params={"id": album_id, "entity": "song"}).json()
+                tracks = [item["trackName"] for item in track_res.get("results", []) if item.get("wrapperType") == "track"]
+    
+                st.session_state["album_data"] = {
+                    "artist": selected_album["artistName"],
+                    "title": selected_album["collectionName"],
+                    "date": selected_album.get("releaseDate", "")[:10],
+                    "genres": selected_album.get("primaryGenreName", "").replace("/", " | "),
+                    "tracks": tracks
+                }
+    
+                img_data = requests.get(selected_album["artworkUrl100"].replace("100x100bb", "1000x1000bb")).content
+                temp_path = Path(tempfile.gettempdir()) / "temp_cover.jpg"
+                temp_path.write_bytes(img_data)
+                
+                img = Image.open(temp_path)
+                st.session_state["palette"] = extract_palette(img)
+                st.session_state["cover_path"] = str(temp_path)
+
+# --- TAB 2: CUSTOM UPLOAD ---
+with tab2:
+    st.subheader("Build a Custom Poster")
+    colA, colB = st.columns(2)
+    with colA:
+        custom_artist = st.text_input("Artist Name", "My Band")
+        custom_title = st.text_input("Album Title", "The Mixtape")
+        custom_date = st.text_input("Release Date", "2024-01-01")
+        custom_genres = st.text_input("Genres", "Indie | Alt-Pop")
+    with colB:
+        custom_tracks = st.text_area("Tracklist (One song per line)", "Intro\nFirst Song\nThe Hit\nOutro", height=130)
+        custom_image = st.file_uploader("Upload Cover Art", type=["png", "jpg", "jpeg", "webp"])
+
+    if st.button("Load Custom Data", type="primary") and custom_image:
+        temp_path = Path(tempfile.gettempdir()) / "custom_temp_cover.jpg"
+        temp_path.write_bytes(custom_image.getvalue())
+        
+        img = Image.open(temp_path)
+        st.session_state["palette"] = extract_palette(img)
+        st.session_state["cover_path"] = str(temp_path)
+        
+        st.session_state["album_data"] = {
+            "artist": custom_artist,
+            "title": custom_title,
+            "date": custom_date,
+            "genres": custom_genres,
+            "tracks": [t.strip() for t in custom_tracks.split("\n") if t.strip()]
+        }
+
+# --- STEP 3: PREVIEW & GENERATE (Shared by both tabs) ---
 if "album_data" in st.session_state:
     data = st.session_state["album_data"]
     st.divider()
     
     col1, col2 = st.columns([1, 2])
     with col1:
-        st.image(data["cover_url"], use_container_width=True)
+        st.image(st.session_state["cover_path"], use_container_width=True)
     with col2:
         st.subheader(data["title"])
         st.write(f"**Artist:** {data['artist']}")
@@ -93,7 +126,6 @@ if "album_data" in st.session_state:
             new_color = st.color_picker(f"Color {i+1}", value=hex_val, key=f"color_{i}")
             updated_palette.append(new_color.lstrip("#").upper())
 
-    # --- STEP 4: GENERATE PPTX ---
     if st.button("🚀 Generate PPTX Poster"):
         filename = re.sub(r'[\\/:*?"<>|]', "", f"{data['artist']} - {data['title']}") + ".pptx"
         out_path = Path(tempfile.gettempdir()) / filename
@@ -105,6 +137,7 @@ if "album_data" in st.session_state:
         original_func = make_poster.extract_palette
         make_poster.extract_palette = custom_extract_palette
         
+        # In Step 2, we will pass poster_size and poster_theme to this function!
         build_poster(
             cover_path=st.session_state["cover_path"],
             artist=data["artist"],
@@ -112,7 +145,9 @@ if "album_data" in st.session_state:
             date=data["date"],
             genres=data["genres"],
             tracks=data["tracks"],
-            out_path=out_path
+            out_path=out_path,
+            size_name=poster_size,
+            theme_name=poster_theme
         )
         
         make_poster.extract_palette = original_func 

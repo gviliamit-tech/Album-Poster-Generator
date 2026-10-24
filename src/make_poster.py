@@ -235,10 +235,33 @@ def fetch_album_data(search_query):
 
 # ============================== BUILD THE SLIDE =============================
 # ============================== BUILD THE SLIDE =============================
-def build_poster(cover_path, artist, title, date, genres, tracks, out_path):
+# ============================== BUILD THE SLIDE =============================
+def build_poster(cover_path, artist, title, date, genres, tracks, out_path, size_name="A4 (8.3 x 11.7)", theme_name="GNX (Light)"):
+    # --- 1. DYNAMIC SIZING MATH ---
+    sizes = {
+        "A4 (8.3 x 11.7)": (8.2677, 11.6929),
+        "US Letter (8.5 x 11)": (8.5, 11.0),
+        "A3 (11.7 x 16.5)": (11.6929, 16.5354),
+        "Poster (18 x 24)": (18.0, 24.0)
+    }
+    PAGE_W, PAGE_H = sizes.get(size_name, sizes["A4 (8.3 x 11.7)"])
+    
+    scale = PAGE_W / 8.2677
+    MARGIN = 0.80 * scale
+    COVER_Y = 0.35 * scale
+    RULE_Y = PAGE_H - (1.07 * scale)  # Always anchor rule proportionally from the bottom
+    LIST_BOTTOM = RULE_Y - (0.22 * scale)
+
+    # --- 2. THEME LOGIC ---
+    is_dark = "Dark" in theme_name
+    bg_color = "111111" if is_dark else "FFFFFF"
+    text_primary = "FFFFFF" if is_dark else "111111"
+    text_secondary = "AAAAAA" if is_dark else GRAY_TEXT
+    rule_color = "FFFFFF" if is_dark else "000000"
+
+    # --- 3. RTL / HEBREW CHECK ---
     all_text_check = f"{artist} {title} {' '.join(tracks)}"
     is_rtl = contains_hebrew(all_text_check)
-    
     font_main = FONT_HEBREW_DEFAULT if is_rtl else FONT_MAIN_DEFAULT
 
     artist_u = artist.upper() if not contains_hebrew(artist) else artist
@@ -246,14 +269,27 @@ def build_poster(cover_path, artist, title, date, genres, tracks, out_path):
     
     tracks_u = []
     for i, t in enumerate(tracks):
+        # 1. Remove existing track numbers
         clean_t = re.sub(r"^\s*\d+[.)]\s*", "", t).strip()
+        
+        # 2. Remove "feat.", "ft.", "featuring" inside or outside parentheses/brackets
+        clean_t = re.sub(r'(?i)\s*(?:-\s*)?[\(\[]?(?:feat\.?|ft\.?|featuring)\b[^)\]]*[\)\]]?', '', clean_t).strip()
+        
+        # 3. Apply capitalization if English
         clean_t = clean_t.upper() if not contains_hebrew(clean_t) else clean_t
-        # Format track number to the right of text if RTL
+        
+        # 4. Format with track number based on RTL/LTR
         tracks_u.append(f"{i + 1}. {clean_t}" if not is_rtl else f"{clean_t} .{i + 1}")
+
 
     img = Image.open(cover_path)
     palette = extract_palette(img)
     title_color, artist_color = pick_text_colors(palette)
+    
+    # If Dark mode, override artist/title colors to white if they are too dark
+    if is_dark:
+        title_color = text_primary
+        artist_color = text_secondary
 
     pic_path = cover_path
     if img.format not in ("JPEG", "PNG"):
@@ -263,6 +299,12 @@ def build_poster(cover_path, artist, title, date, genres, tracks, out_path):
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(PAGE_W), Inches(PAGE_H)
     slide = prs.slides.add_slide(prs.slide_layouts[6]) 
+
+    # Apply Background Color
+    background = slide.background
+    fill = background.fill
+    fill.solid()
+    fill.fore_color.rgb = RGBColor.from_string(bg_color)
 
     cw = PAGE_W - 2 * MARGIN
     right = MARGIN + cw
@@ -279,8 +321,8 @@ def build_poster(cover_path, artist, title, date, genres, tracks, out_path):
         pic.crop_top = pic.crop_bottom = (h - w) / 2 / h
     cover_bottom = COVER_Y + cw
 
-    # --- Swatches (RTL pushes them to the LEFT) ---
-    sw_y = cover_bottom + 0.21
+    # --- Swatches ---
+    sw_y = cover_bottom + (0.21 * scale)
     sw_total, gap, sw_h = 585 * s, 25 * s, 91 * s
     sw_w = (sw_total - 4 * gap) / 5
     sw_start_x = MARGIN if is_rtl else right - sw_total
@@ -288,73 +330,72 @@ def build_poster(cover_path, artist, title, date, genres, tracks, out_path):
     for i, col in enumerate(palette):
         add_rect(slide, f"Swatch {i + 1}", sw_start_x + i * (sw_w + gap), sw_y, sw_w, sw_h, col)
 
-    # --- Genres (RTL pushes them to the LEFT) ---
+    # --- Genres ---
     if genres:
-        g_x = MARGIN if is_rtl else right - 3.2
+        g_x = MARGIN if is_rtl else right - (3.2 * scale)
         g_align = PP_ALIGN.LEFT if is_rtl else PP_ALIGN.RIGHT
-        add_text(slide, "Genres", g_x, sw_y + sw_h + 0.10, 3.2, 0.3, [genres],
-                 FONT_LIGHT if not is_rtl else FONT_HEBREW_DEFAULT, 11.5, GRAY_TEXT, align=g_align)
+        add_text(slide, "Genres", g_x, sw_y + sw_h + (0.10 * scale), 3.2 * scale, 0.3 * scale, [genres],
+                 FONT_LIGHT if not is_rtl else FONT_HEBREW_DEFAULT, 11.5 * scale, text_secondary, align=g_align)
 
-    # --- Tracklist (RTL pushes it to the RIGHT) ---
-    list_top = cover_bottom + 0.25
+    # --- Tracklist ---
+    list_top = cover_bottom + (0.25 * scale)
     list_w = 0.44 * cw
     list_align = PP_ALIGN.RIGHT if is_rtl else PP_ALIGN.LEFT
     list_x = right - list_w if is_rtl else MARGIN
     
-    FONT_SIZE_PT = 14
-    LINE_SPACING_PT = 16.8
+    FONT_SIZE_PT = 14 * scale
+    LINE_SPACING_PT = 16.8 * scale
     
     if len(tracks_u) > 13:
         col1 = tracks_u[:13]
         col2 = tracks_u[13:]
         col_w = list_w * 0.60
         
-        # In RTL, Column 1 is on the far right, Column 2 is to its left
         x1 = right - col_w if is_rtl else MARGIN
         x2 = right - col_w * 2 if is_rtl else MARGIN + col_w
         
         add_text(slide, "Tracklist 1", x1, list_top, col_w, LIST_BOTTOM - list_top,
-                 col1, color="111111", size=FONT_SIZE_PT, line_pt=LINE_SPACING_PT, align=list_align, **font_kw)
+                 col1, color=text_primary, size=FONT_SIZE_PT, line_pt=LINE_SPACING_PT, align=list_align, **font_kw)
         add_text(slide, "Tracklist 2", x2, list_top, col_w, LIST_BOTTOM - list_top,
-                 col2, color="111111", size=FONT_SIZE_PT, line_pt=LINE_SPACING_PT, align=list_align, **font_kw)
+                 col2, color=text_primary, size=FONT_SIZE_PT, line_pt=LINE_SPACING_PT, align=list_align, **font_kw)
     else:
         add_text(slide, "Tracklist", list_x, list_top, list_w, LIST_BOTTOM - list_top,
-                 tracks_u, color="111111", size=FONT_SIZE_PT, line_pt=LINE_SPACING_PT, align=list_align, **font_kw)
+                 tracks_u, color=text_primary, size=FONT_SIZE_PT, line_pt=LINE_SPACING_PT, align=list_align, **font_kw)
 
-    add_rect(slide, "Rule", MARGIN - 0.12, RULE_Y, cw + 0.24, 0.05, "000000")
+    add_rect(slide, "Rule", MARGIN - (0.12 * scale), RULE_Y, cw + (0.24 * scale), 0.05 * scale, rule_color)
     
-    # --- Date (RTL pushes it to the RIGHT) ---
+    # --- Date ---
     date_align = PP_ALIGN.RIGHT if is_rtl else PP_ALIGN.LEFT
-    date_x = right - 4 if is_rtl else MARGIN
-    add_text(slide, "Date", date_x, RULE_Y + 0.12, 4, 0.3, [fmt_date(date)], color="111111", size=14, align=date_align, **font_kw)
+    date_x = right - (4 * scale) if is_rtl else MARGIN
+    add_text(slide, "Date", date_x, RULE_Y + (0.12 * scale), 4 * scale, 0.3 * scale, [fmt_date(date)], color=text_primary, size=14 * scale, align=date_align, **font_kw)
 
-    # --- Artist + Title Block (RTL pushes it to the LEFT) ---
+    # --- Artist + Title Block ---
     max_block_w = 0.54 * cw
     TITLE_EM = COND_EM * 0.96
     t_align = PP_ALIGN.LEFT if is_rtl else PP_ALIGN.RIGHT
     
     t_lines = [title_u]
-    pt = min(54, max_block_w * 72 / (len(title_u) * TITLE_EM))
+    pt = min(54 * scale, max_block_w * 72 / (len(title_u) * TITLE_EM))
     
-    if pt < 28 and len(title_u.split()) > 1:
+    if pt < (28 * scale) and len(title_u.split()) > 1:
         t_lines = split_balanced(title_u)
-        pt = min(46, max_block_w * 72 / (max(len(l) for l in t_lines) * TITLE_EM))
+        pt = min(46 * scale, max_block_w * 72 / (max(len(l) for l in t_lines) * TITLE_EM))
         
-    pt = max(pt * 0.95, 14)
+    pt = max(pt * 0.95, 14 * scale)
     t_h = len(t_lines) * pt * 1.0 / 72
     descent = lambda pt: 0.20 * pt / 72
-    t_bottom = RULE_Y - 0.06 + descent(pt)
+    t_bottom = RULE_Y - (0.06 * scale) + descent(pt)
     
-    t_x = MARGIN if is_rtl else right + 0.10 - max_block_w
+    t_x = MARGIN if is_rtl else right + (0.10 * scale) - max_block_w
     
     # Title
-    add_text(slide, "Album title", t_x, t_bottom - t_h - 0.1, max_block_w, t_h + 0.1,
+    add_text(slide, "Album title", t_x, t_bottom - t_h - (0.1 * scale), max_block_w, t_h + (0.1 * scale),
              t_lines, color=title_color, size=pt, align=t_align, anchor=MSO_ANCHOR.BOTTOM,
              spacing_pt=1, line_pt=pt, **font_kw)
              
     # Artist
-    a_pt = min(22, max_block_w * 72 / (len(artist_u) * COND_EM))
-    add_text(slide, "Artist", t_x, t_bottom - t_h - 0.1 - a_pt * 1.2 / 72, max_block_w,
+    a_pt = min(22 * scale, max_block_w * 72 / (len(artist_u) * COND_EM))
+    add_text(slide, "Artist", t_x, t_bottom - t_h - (0.1 * scale) - a_pt * 1.2 / 72, max_block_w,
              a_pt * 1.2 / 72, [artist_u], color=artist_color, size=a_pt, align=t_align,
              anchor=MSO_ANCHOR.BOTTOM, **font_kw)
 
